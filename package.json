@@ -1,7 +1,7 @@
 {
 	"name": "rollup-plugin-md-icon-localize",
-	"version": "1.0.0",
-	"description": "",
+	"version": "0.0.5",
+	"description": "Rollup plugin for localizing mw3 icons.",
 	"main": "lib/index.js",
 	"module": "lib/index.js",
 	"types": "lib/index.d.ts",
@@ -13,7 +13,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": ""
+		"url": "https://github.com/vdegenne/rollup-plugin-md-icon-localize.git"
 	},
 	"scripts": {
 		"build": "wireit"
@@ -31,15 +31,22 @@
 			]
 		}
 	},
-	"devDependencies": {
+	"dependencies": {
 		"@rollup/pluginutils": "^5.0.3",
+		"fast-glob": "^3.3.1",
+		"shelljs": "^0.8.5"
+	},
+	"devDependencies": {
 		"@types/node": "^20.5.0",
 		"@types/shelljs": "^0.8.12",
-		"fast-glob": "^3.3.1",
 		"node-fetch": "^3.3.2",
 		"rollup": "^3.28.0",
-		"shelljs": "^0.8.5",
 		"typescript": "^5.1.6",
 		"wireit": "^0.10.0"
-	}
+	},
+	"files": [
+		"/lib",
+		"/bin",
+		"logo.png"
+	]
 }
