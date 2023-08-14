@@ -1,8 +1,7 @@
-<center>
+<div align=left>
 	<img src="./logo.png" width="364px">
-</center>
+</div>
 
----
 
 ## Why?
 
