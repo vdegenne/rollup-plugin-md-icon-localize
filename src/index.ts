@@ -2,30 +2,60 @@ import {createFilter} from '@rollup/pluginutils';
 import {Plugin} from 'rollup';
 import {Variant, getCodepointDocument, getCodepointMap} from './utils.js';
 import {existsSync} from 'fs';
-import {mkdir} from 'fs/promises';
+import {mkdir, writeFile} from 'fs/promises';
+import fastGlob from 'fast-glob';
+import {buildFontFiles} from './font.js';
 
 export interface MdIconBundlerOptions {
+	/**
+	 * Files to include in the search for md-icon's names.
+	 *
+	 * default to all common files in src directory.
+	 */
 	include: string | string[];
+
+	/**
+	 * The output direction where the downloaded font files should go.
+	 *
+	 * @default public
+	 */
+	outDir: string;
+
+	/**
+	 * Variant used in the app.
+	 * Possible values: outlined, rounded, sharp.
+	 *
+	 * @default outlined
+	 */
 	variant: Variant;
 }
 
 async function mdIconLocalize(
 	options: Partial<MdIconBundlerOptions> = {}
 ): Promise<Plugin> {
-	// Ensure the defaults
 	options = {
+		// defaults
 		...{
-			include: '**/*.(ts|html)',
+			include: 'src/**/*.(js|ts|jsx|tsx|html)',
+			outDir: 'public',
 			variant: 'OUTLINED',
 		},
+		// user
 		...options,
 	};
 
-	const filter = createFilter(options.include);
+	options.include = [
+		'node_modules/.vite/deps/**/*.(js|ts|jsx|tsx|html)',
+		...(Array.isArray(options.include) ? options.include : [options.include]),
+	];
 
-	if (!existsSync('.mdicon')) {
-		await mkdir('.mdicon');
-	}
+	const filters = options.include.map((include) => {
+		return createFilter(include + '*');
+	});
+
+	// if (!existsSync('.mdicon')) {
+	// 	await mkdir('.mdicon');
+	// }
 
 	const codepointDocument = await getCodepointDocument(options.variant);
 	const codepointMap = getCodepointMap(codepointDocument);
@@ -34,13 +64,15 @@ async function mdIconLocalize(
 
 	return {
 		name: 'md-icon-localize',
+
+		async buildStart() {
+			await buildFontFiles(options.include, options.outDir, options.variant);
+		},
+
 		async transform(code, id) {
-			if (!filter(id)) {
+			if (!filters.some((filter) => filter(id))) {
 				return null;
 			}
-
-			// let updatedCode = code;
-
 			// Regular expression to match <md-icon> tags
 			const mdIconRegex = /(?!<md-icon>)([aA-zZ]+)(?=<\/md-icon>)/g;
 
@@ -55,7 +87,7 @@ async function mdIconLocalize(
 
 			return {
 				code: updatedCode,
-				map: null, // You can provide a source map if needed
+				map: null,
 			};
 		},
 	};

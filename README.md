@@ -2,7 +2,6 @@
 	<img src="./logo.png" width="364px">
 </div>
 
-
 ## Why?
 
 If you use `<md-icon>` element from [Material Web 3](https://github.com/material-components/material-web) you probably noticed that there are two inconvenients:
@@ -20,29 +19,7 @@ npm i -D rollup-plugin-md-icon-localize
 
 ## Usage
 
-There are 2 steps:
-
-### 1. Download the font file
-
-Everytime you add new icon names in your app, you have to reflect/download the new font file:
-
-You can do that manually from command line
-
-```
-npx rpmil src assets
-```
-
-`src` is the directory where the command will search recursively for icon names.
-`assets` is where the font files will get downloaded, two files precisely:
-
-- `material-symbols.woff2`: The font file itself
-- `material-symbols.css` : The stylesheet importing the font and defining the icon class.
-
-You don't need to know what these files do, but you'll have to include `material-symbols.css` somewhere in your source code as a trade-off.
-
-### 2. Use the plugin
-
-The plugin converts icon names to codepoints during build:
+Just import the module and add it to the plugins list
 
 ```javascript
 import {mdIconLocalize} from 'rollup-plugin-md-icon-localize';
@@ -51,6 +28,22 @@ export default {
 	plugins: [mdIconLocalize()],
 };
 ```
+
+Here are the background steps that the plugin goes through:
+
+- Scans the source code and builds a list of all icons found.
+- Downloads minimum size font file for your code. 2 files are created:
+  - `material-symbols.woff2`: The font file itself.
+  - `material-symbols.css` : The stylesheet importing the font and defining the icon class.
+    You need to import this file somewhere in your code to resolve the codepoints.
+- Replaces all found icon names in your code with their appropriate codepoint.
+
+In the end your code will have codepoints for names and a size shortened local font file.
+That's really all about it.
+
+## Caveats
+
+When using Vite in dev/watch mode you will have to restart vite server everytime you add a new icon name.
 
 ## Contributing
 
