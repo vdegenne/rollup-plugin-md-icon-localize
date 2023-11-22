@@ -1,12 +1,20 @@
+import fs from 'fs';
 import {createFilter} from '@rollup/pluginutils';
-import {Plugin} from 'rollup';
-import {Variant, getCodepointDocument, getCodepointMap} from './utils.js';
-import {existsSync} from 'fs';
-import {mkdir, writeFile} from 'fs/promises';
-import fastGlob from 'fast-glob';
-import {buildFontFiles} from './font.js';
+import {type Plugin} from 'rollup';
+import {
+	Variant,
+	buildFontFiles,
+	getCodepointDocument,
+	getCodepointMap,
+} from './font.js';
+import {
+	DEFAULT_FONT_OUTPUT_DIRECTORY,
+	DEFAULT_INCLUDE,
+	DEFAULT_VARIANT,
+	MD_ICON_REGEX,
+} from './constants.js';
 
-export interface MdIconBundlerOptions {
+export interface MdIconLocalizeOptions {
 	/**
 	 * Files to include in the search for md-icon's names.
 	 *
@@ -28,67 +36,68 @@ export interface MdIconBundlerOptions {
 	 * @default outlined
 	 */
 	variant: Variant;
+
+	/**
+	 * List of additional icon name to include in the font.
+	 * Particularly useful when the analyzer can't detect dynamically
+	 * built md-icon elements.
+	 */
+	additionalIconNames: string[];
 }
 
 async function mdIconLocalize(
-	options: Partial<MdIconBundlerOptions> = {}
+	options: Partial<MdIconLocalizeOptions> = {}
 ): Promise<Plugin> {
-	options = {
+	const _options: MdIconLocalizeOptions = {
 		// defaults
 		...{
-			include: 'src/**/*.(js|ts|jsx|tsx|html)',
-			outDir: 'public',
-			variant: 'OUTLINED',
+			include: DEFAULT_INCLUDE,
+			outDir: DEFAULT_FONT_OUTPUT_DIRECTORY,
+			variant: DEFAULT_VARIANT,
+			additionalIconNames: [],
 		},
 		// user
 		...options,
 	};
 
-	options.include = [
-		'node_modules/.vite/deps/**/*.(js|ts|jsx|tsx|html)',
-		...(Array.isArray(options.include) ? options.include : [options.include]),
+	_options.include = [
+		'node_modules/.vite/deps/**/*.{js,ts,jsx,tsx,html}',
+		...(Array.isArray(_options.include)
+			? _options.include
+			: [_options.include]),
 	];
 
-	const filters = options.include.map((include) => {
+	const filters = _options.include.map((include) => {
 		return createFilter(include + '*');
 	});
 
-	// if (!existsSync('.mdicon')) {
-	// 	await mkdir('.mdicon');
-	// }
+	if (!fs.existsSync('.mdicon')) {
+		await fs.promises.mkdir('.mdicon');
+	}
 
-	const codepointDocument = await getCodepointDocument(options.variant);
+	const codepointDocument = await getCodepointDocument(_options.variant);
 	const codepointMap = getCodepointMap(codepointDocument);
-
-	const appIcons: string[] = [];
 
 	return {
 		name: 'md-icon-localize',
 
 		async buildStart() {
-			await buildFontFiles(options.include, options.outDir, options.variant);
+			await buildFontFiles(_options);
 		},
 
-		async transform(code, id) {
+		transform(code, id) {
 			if (!filters.some((filter) => filter(id))) {
 				return null;
 			}
-			// Regular expression to match <md-icon> tags
-			const mdIconRegex = /(?!<md-icon>)([aA-zZ]+)(?=<\/md-icon>)/g;
 
-			// Extract content from <md-icon> tags
-			const updatedCode = code.replace(mdIconRegex, (_, $1) => {
-				// Process the content as needed (e.g., log, modify, etc.)
-				appIcons.push($1);
+			// Replace icon names with codepoint
+			code = code.replace(
+				MD_ICON_REGEX,
+				(_, openingTag, iconName, closingTag) =>
+					`${openingTag}&#x${codepointMap.get(iconName)};${closingTag}`
+			);
 
-				// Replace the <md-icon> tag with its content
-				return `&#x${codepointMap.get($1)};`;
-			});
-
-			return {
-				code: updatedCode,
-				map: null,
-			};
+			return code;
 		},
 	};
 }

@@ -3,93 +3,52 @@
  * Copyright (c) 2023 Valentin Degenne
  * SPDX-License-Identifier: MIT
  */
-import {existsSync} from 'fs';
-import {readFile, writeFile} from 'fs/promises';
-import pathlib from 'path';
-import fastGlob from 'fast-glob';
-import shelljs from 'shelljs';
+import {readFile} from 'fs/promises';
+import {MD_ICON_REGEX} from './constants.js';
+import {glob} from 'glob';
 
-export const mdIconRegexp = /(?!<md-icon>)([aA-zZ]+)(?=<\/md-icon>)/g;
-
-export const UrlFontName = {
-	OUTLINED: 'Material+Symbols+Outlined',
-	ROUNDED: 'Material+Symbols+Rounded',
-	SHARP: 'Material+Symbols+Sharp',
-} as const;
-
-export type Variant = keyof typeof UrlFontName;
-type UrlFontName = (typeof UrlFontName)[Variant];
-
-type CodepointMap = Map<string, string>;
-
-export async function fetchCodepointDocument(font: UrlFontName) {
-	const res = await fetch(
-		`https://raw.githubusercontent.com/google/material-design-icons/master/variablefont/${font.replaceAll(
-			'+',
-			''
-		)}%5BFILL%2CGRAD%2Copsz%2Cwght%5D.codepoints`
-	);
-	const text = await res.text();
-	return text;
-}
-
-export async function getCodepointDocument(variant: Variant) {
-	const codepointDocFilepath = pathlib.join('.mdicon', `${variant}.codepoints`);
-	let codepointDocument;
-	if (!existsSync(codepointDocFilepath)) {
-		codepointDocument = await fetchCodepointDocument(UrlFontName[variant]);
-		writeFile(codepointDocFilepath, codepointDocument);
-	} else {
-		codepointDocument = String(await readFile(codepointDocFilepath));
-	}
-
-	return codepointDocument;
-}
-
-export function getCodepointMap(codepointDocument: string) {
-	const lines = codepointDocument.split('\n');
-	const codepointMap: CodepointMap = new Map();
-	lines.forEach((line) => {
-		const [name, codepoint] = line.split(' ');
-		codepointMap.set(name, codepoint);
-	});
-
-	return codepointMap;
-}
-
-export async function findIconNames(
-	source: string | string[] = 'src/**/*.(ts|html)'
+/**
+ * Search files for md-icon text values.
+ *
+ * @param sources Glob of source files to search md-icon's in
+ * @returns Array of distinct icon names
+ */
+export async function findMdIconNames(
+	sources: string | string[] = 'src/**/*.{ts,html}'
 ) {
-	const files = await fastGlob(source, {absolute: true});
+	const files = glob.sync(sources);
+
 	if (files.length === 0) {
-		throw new Error('No files to search.');
+		return [];
 	}
-	const grepResultLines = shelljs.grep(mdIconRegexp, files).stdout.split('\n');
-	const namesMap = new Set<string>();
-	grepResultLines.forEach((line) => {
-		line.replace(mdIconRegexp, (_, $1) => {
-			namesMap.add($1);
-			return $1;
+
+	let names: string[] = [];
+
+	for (const file of files) {
+		const contents = (await readFile(file)).toString();
+
+		// Using replace for convenience
+		contents.replace(MD_ICON_REGEX, (_, _openingTag, iconName, _closingTag) => {
+			names.push(iconName);
+			return iconName;
 		});
-	});
-
-	const names = [...namesMap.keys()];
-	if (names.length === 0) {
-		console.error(`No icons found in the sources.`);
 	}
 
+	// // const grepResultLines = shelljs.grep(MD_ICON_REGEX, files).stdout.split('\n');
+	// const grepResultLines = grep(MD_ICON_REGEX, source);
+	// const namesMap = new Set<string>();
+	// grepResultLines.forEach((line) => {});
+
+	// const names = [...namesMap.keys()];
+	// if (names.length === 0) {
+	// 	console.error(`No icons found in the sources.`);
+	// }
+
+	// Make names distinct
+	names = [...new Set(names)];
 	return names.sort();
 }
 
-export const generateFontsUrl = (
-	font: UrlFontName,
-	codepoints: string[] = []
-) => {
-	let text = codepoints.length ? '&text=' : '';
-
-	codepoints.forEach((codepoint) => {
-		text += encodeURIComponent(String.fromCharCode(parseInt(codepoint, 16)));
-	});
-
-	return `https://fonts.googleapis.com/css2?family=${font}:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200${text}`;
-};
+export function arrayAreEquals(arr1: any[], arr2: any[]) {
+	return arr1.every((i) => arr2.includes(i)) && arr1.length === arr2.length;
+}
