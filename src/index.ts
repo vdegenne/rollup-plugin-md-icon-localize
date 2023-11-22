@@ -1,6 +1,7 @@
 import fs from 'fs';
 import {createFilter} from '@rollup/pluginutils';
-import {type Plugin} from 'rollup';
+// import {type Plugin} from 'rollup';
+import {ResolvedConfig, type Plugin} from 'vite';
 import {
 	Variant,
 	buildFontFiles,
@@ -78,10 +79,33 @@ async function mdIconLocalize(
 	const codepointDocument = await getCodepointDocument(_options.variant);
 	const codepointMap = getCodepointMap(codepointDocument);
 
+	let viteConfig: ResolvedConfig;
+
 	return {
 		name: 'md-icon-localize',
 
+		/**
+		 * Vite specific
+		 */
+		configResolved(_config) {
+			viteConfig = _config;
+		},
+
+		async transformIndexHtml(html) {
+			// In vite we want to use this hook to make sure
+			// we always have the updated font when the page reloads
+			// But in build mode this function is called too late, we
+			// have to use buildStart hook to make sure the last font are
+			// included into the builds.
+			if (viteConfig.command === 'serve') {
+				await buildFontFiles(_options);
+			}
+		},
+
 		async buildStart() {
+			if (viteConfig && viteConfig.command === 'serve') {
+				return;
+			}
 			await buildFontFiles(_options);
 		},
 
@@ -90,7 +114,7 @@ async function mdIconLocalize(
 				return null;
 			}
 
-			// Replace icon names with codepoint
+			// Replace icon names with codepoints
 			code = code.replace(
 				MD_ICON_REGEX,
 				(_, openingTag, iconName, closingTag) =>
