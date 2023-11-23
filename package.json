@@ -1,6 +1,6 @@
 {
 	"name": "rollup-plugin-md-icon-localize",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Rollup plugin for localizing mw3 icons.",
 	"main": "lib/index.js",
 	"module": "lib/index.js",
