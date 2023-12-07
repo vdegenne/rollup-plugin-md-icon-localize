@@ -1,5 +1,11 @@
 # rollup-plugin-md-icon-localize
 
+## 0.2.1
+
+### Patch Changes
+
+- fix default include pattern
+
 ## 0.2.0
 
 ### Minor Changes
